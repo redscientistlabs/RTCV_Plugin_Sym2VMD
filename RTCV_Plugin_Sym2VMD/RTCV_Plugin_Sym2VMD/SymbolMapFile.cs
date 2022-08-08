@@ -19,6 +19,7 @@ namespace RTCV_Plugin_Sym2VMD
     public enum GenerationMode
     {
         BySourceFile,
+        BySourceFile_Alt,
         ByStaticLibrary,
         BySymbol
     }
@@ -27,7 +28,7 @@ namespace RTCV_Plugin_Sym2VMD
     {
         public static List<RTCV.CorruptCore.VmdPrototype> GenerateMetrowerksWiiVMDs(TextReader mapfile, GenerationMode mode, MemoryInterface mi, string filter)
         {
-            Regex get_source_file = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [0-9a-f]{8} [ 0-9][0-9] (?<SymbolName>.+) \t.* (?<SourceFile>.+)", RegexOptions.Compiled);
+            Regex get_source_file = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [ 0-9][0-9] (?<SymbolName>.+) \t(?<SourceFile>.+)", RegexOptions.Compiled);
             Regex get_static_library = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [0-9a-f]{8} [ 0-9][0-9] (?<SymbolName>.+) \t(?<LibraryName>.+) .*", RegexOptions.Compiled);
             Regex get_symbol = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [0-9a-f]{8} [ 0-9][0-9] (?<SymbolName>.+) \t.* .+", RegexOptions.Compiled);
             List<VmdPrototype> vmdPrototypes = new List<VmdPrototype>();
@@ -137,7 +138,7 @@ namespace RTCV_Plugin_Sym2VMD
                                 GroupCollection groups = match.Groups;
                                 if (filters.Count > 0)
                                 {
-                                    if (!filters.Contains(groups["SourceFile"].Value))
+                                    if (!filters.Contains(groups["SourceFile"].Value.Trim()))
                                     {
                                         continue;
                                     }
@@ -192,11 +193,11 @@ namespace RTCV_Plugin_Sym2VMD
         }
         public static List<RTCV.CorruptCore.VmdPrototype> GenerateMetrowerksGCVMDs(TextReader mapfile, GenerationMode mode, MemoryInterface mi, string filter)
         {
-            Regex get_source_file = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [ 0-9][0-9] (?<SymbolName>.+) \t.* (?<SourceFile>.+)", RegexOptions.Compiled);
+            Regex get_source_file = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [ 0-9][0-9] (?<SymbolName>.+) \t(?<SourceFile>.+)", RegexOptions.Compiled);
             Regex get_static_library = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [ 0-9][0-9] (?<SymbolName>.+) \t(?<LibraryName>.+) .*", RegexOptions.Compiled);
-            Regex get_symbol = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [ 0-9][0-9] (?<SymbolName>.+) \t.* .+", RegexOptions.Compiled);
+            Regex get_symbol = new Regex(@"  [0-9a-f]{8} (?<Size>[0-9a-f]{6}) (?<Address>[0-9a-f]{8}) [ 0-9][0-9] (?<SymbolName>.+).* .+", RegexOptions.Compiled);
             List<VmdPrototype> vmdPrototypes = new List<VmdPrototype>();
-            List<string> filters = filter?.Split('|').ToList();
+            List<string> filters = string.IsNullOrWhiteSpace(filter) ? new List<string>() : filter?.Split('|').ToList();
             string source_file = "";
             string library_name = "";
             string symbol_name = "";
@@ -342,6 +343,71 @@ namespace RTCV_Plugin_Sym2VMD
                                 }
                                 total_vmd_size += int.Parse(groups["Size"].Value, System.Globalization.NumberStyles.HexNumber);
                                 source_file = groups["SourceFile"].Value;
+                                
+                            }
+                            break;
+                        }
+                    case GenerationMode.BySourceFile_Alt:
+                        {
+                            MatchCollection matches = get_source_file.Matches(line);
+                            foreach (Match match in matches)
+                            {
+                                GroupCollection groups = match.Groups;
+                                if (filters.Count > 0)
+                                {
+                                    if (!filters.Contains(groups["SourceFile"].Value))
+                                    {
+                                        continue;
+                                    }
+                                }
+                                //string _symbol_name = groups["SymbolName"].Value;
+                                //if (groups["SourceFile"].Value != source_file && source_file != "")
+                                //{
+                                //    var range = new long[2];
+                                //    range[0] = starting_address;
+                                //    range[1] = starting_address + total_vmd_size;
+                                //    List<long[]> ranges = new List<long[]>();
+                                //    ranges.Add(range);
+                                //    VmdPrototype vmd = new VmdPrototype()
+                                //    {
+                                //        VmdName = $"{source_file}|{symbol_name}|{starting_address:X}",
+                                //        GenDomain = mi.Name,
+                                //        BigEndian = mi.BigEndian,
+                                //        AddRanges = ranges,
+                                //        WordSize = mi.WordSize,
+                                //        PointerSpacer = 1,
+                                //    };
+                                //    starting_address = 0;
+                                //    total_vmd_size = 0;
+                                //    symbol_name = "";
+                                //    source_file = "";
+                                //    vmdPrototypes.Add(vmd);
+                                //}
+                                //symbol_name = _symbol_name;
+                                //long address = long.Parse(groups["Address"].Value, System.Globalization.NumberStyles.HexNumber) - 0x80000000;
+                                //if (starting_address == 0)
+                                //{
+                                //    starting_address = address;
+                                //}
+                                //total_vmd_size += int.Parse(groups["Size"].Value, System.Globalization.NumberStyles.HexNumber);
+                                //source_file = groups["SourceFile"].Value;
+                                var range = new long[2];
+                                long address = long.Parse(groups["Address"].Value, System.Globalization.NumberStyles.HexNumber) - 0x80000000;
+                                source_file = groups["SourceFile"].Value;
+                                range[0] = address;
+                                range[1] = address + int.Parse(groups["Size"].Value, System.Globalization.NumberStyles.HexNumber);
+                                List<long[]> ranges = new List<long[]>();
+                                ranges.Add(range);
+                                VmdPrototype vmd = new VmdPrototype()
+                                {
+                                    VmdName = $"{source_file}|{groups["Address"].Value}",
+                                    GenDomain = mi.Name,
+                                    BigEndian = mi.BigEndian,
+                                    AddRanges = ranges,
+                                    WordSize = mi.WordSize,
+                                    PointerSpacer = 1,
+                                };
+                                vmdPrototypes.Add(vmd);
                             }
                             break;
                         }
